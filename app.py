@@ -131,6 +131,17 @@ def update_spreadsheet(service, spreadsheet_id, values):
         logger.error(f"Error updating spreadsheet: {str(e)}")
         raise
 
+def get_last_processed_id():
+    try:
+        with open('last_processed.txt', 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return None
+
+def save_last_processed_id(message_id):
+    with open('last_processed.txt', 'w') as f:
+        f.write(message_id)
+
 def monitor_emails():
     try:
         creds = get_google_credentials()
@@ -140,7 +151,8 @@ def monitor_emails():
         SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
         logger.info(f"Starting email monitoring for spreadsheet: {SPREADSHEET_ID}")
         
-        last_message_id = None
+        last_message_id = get_last_processed_id()
+        logger.info(f"Last processed message ID: {last_message_id}")
         
         while True:
             try:
@@ -152,12 +164,10 @@ def monitor_emails():
                 
                 messages = results.get('messages', [])
                 
-                if messages:
-                    logger.debug(f"Found message with ID: {messages[0]['id']}")
-                
                 if messages and (last_message_id != messages[0]['id']):
-                    logger.info("Processing new email")
                     last_message_id = messages[0]['id']
+                    
+                    logger.info("Processing new email")
                     
                     message = gmail_service.users().messages().get(
                         userId='me',
@@ -201,6 +211,9 @@ def monitor_emails():
                     update_spreadsheet(sheets_service, SPREADSHEET_ID, row_data)
                     
                     logger.info("Successfully processed email")
+                    
+                    # Save the ID after successful processing
+                    save_last_processed_id(last_message_id)
                     
                 time.sleep(60)
                 

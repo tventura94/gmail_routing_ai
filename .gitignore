@@ -4,3 +4,4 @@ token.pickle
 *.log
 __pycache__/
 .DS_Store
+last_processed.txt
